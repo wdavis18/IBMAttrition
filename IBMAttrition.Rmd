@@ -1,0 +1,137 @@
+---
+title: "IBM Attrition"
+output: ioslides_presentation
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r}
+library(shiny)
+library(shinythemes)
+library(shinydashboard)
+library(plotly)
+library(emojifont)
+library(dplyr)
+library(shinyWidgets)
+library(ggplot2)
+```
+In this lab you need to create a shiny app. 
+
+Naturally, you would need to install `shiny` package.  You can either create ui.R and server.R files, or just one .R file with both UI and server codes in
+it.
+
+```{r}
+ibm_data <- read.csv2("WA_Fn-UseC_-HR-Employee-Attrition.csv", sep= ",")
+
+#Data categories
+
+
+ibmGender <- select(ibm_data, HourlyRate, Gender, )
+ibmDepartment <- select(ibm_data, HourlyRate, Department)
+ibmAge <- select(ibm_data, HourlyRate, Age)
+
+
+
+ibmAtt <- character()
+for(i in 1:length(ibm_data$Attrition)){
+  if (ibm_data$Attrition[i] == "Yes"){
+    ibmAtt[i] <- 'Yes'
+  }else if(ibm_data$Attrition[i] == "No"){
+    ibmAtt[i] <-'No'
+  }
+}
+
+
+ibmAttAge <- na.omit(cbind(ibmAge,ibmAtt))
+ibmAttDepartment<- na.omit( cbind(ibmDepartment,ibmAtt))
+ibmAttGender <- na.omit(cbind(ibmGender,ibmAtt))
+
+m = mean(ibmAge$HourlyRate)
+s = sd(ibmAttAge$HourlyRate)
+
+g <- ggplot(ibmAttAge, aes(x=HourlyRate, color=ibmAtt, after_stat(density))) +
+  geom_histogram(binwidth=2.5) +
+  xlab("Hourly Pay") +
+  ylab("Density") +
+  geom_density(aes(x=HourlyRate, color = ibmAtt))
+  
+
+```
+
+
+```{r}
+ui<- fluidPage(
+  dashboardBody(setBackgroundImage(src ="https://images.pexels.com/photos/735911/pexels-photo-735911.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" )),
+  theme = shinytheme("superhero"),
+  navbarPage("IBM Attrition Rate Analysis", 
+             tabPanel("Introduction", 
+                      mainPanel(tags$h1("Introduction",emoji('book')),
+                                p("\"Employee attrition is  defined as the natural process by which employees leave the workforce.\"(BasuMallick, 2021). IBM has created a dataset to analyze employee attrition rates vs performance.  "),
+                                p("This app will use normal distribution to display the correlation between employee attrition, age, gender, and department vs hourly rate."),
+                                p("All data used in this application can be found here: https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset"),
+                                
+                                tags$h3("Features", emoji('rocket'),emoji('computer')),
+                                p('This app features the following:'),
+                                p("A Navagational Bar."),
+                                p("An interactive Plotly bar plot."),
+                                p("A custom royalty free stock photo background."),
+                                p("Radio button selection for various graphical comparisons."),
+                                
+                                tags$h2("References"),
+                                p("BasuMallick. (2021, March 11). What Is Employee Attrition? Definition, Attrition Rate, Factors, and Reduction Best Practices. Https://Www.Pexels.Com/Photo/Photo-of-Person-Typing-on-Computer-Keyboard-735911/. https://www.toolbox.com/hr/engagement-retention/articles/what-is-attrition-complete-guide/Photo of Person Typing on Computer Keyboard. (2017, October 15). [Photograph]. https://images.pexels.com/photos/735911/pexels-photo-735911.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2")
+                                
+               
+             )),
+             tabPanel("Normal Distribution",
+                      sidebarPanel(tags$h3("Attrition Filter"),
+                       
+                          radioButtons("att_choice",
+                                       label= "Filter",
+                                       choiceNames = list("Age","Gender","Department"),
+                                       choiceValues = list('Age','Gender','Department')
+                            
+                          )
+                        
+                      ),
+                      
+                      mainPanel(
+                        plotlyOutput("plot")
+                        )  
+                      ),
+             )
+
+   )
+
+
+```
+
+```{r}
+server<- function(input,output){
+  
+observeEvent(input$att_choice,{
+  output$plot <- switch(input$att_choice,
+                        'Age' = renderPlotly({ggplotly(g)}),
+                        'Gender' =  renderPlotly({plot_ly(ibmAttGender, 
+                                                          x = ibmAttGender$Gender,
+                                                          y= ibmAttGender$HourlyRate,
+                                                          color = ibmAttGender$ibmAtt,
+                                                          type="bar")}),
+                        
+                        'Department' = renderPlotly({plot_ly(ibmAttDepartment, 
+                                                             x = ibmAttDepartment$Department, 
+                                                             y= ibmAttDepartment$HourlyRate, 
+                                                             color = ibmAttDepartment$ibmAtt,
+                                                             type="bar")}))
+  output$att_choice <-renderText(input$att_choice)})
+}
+
+
+
+shinyApp(ui = ui,server = server)
+
+```
+
